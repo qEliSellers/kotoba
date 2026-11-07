@@ -1,0 +1,13 @@
+id,word,form,freq,pos,translation,extended,notes
+1,食べる,たべる,194,v1-t,to eat,to consume,Illustrative sample; rank is not a verified corpus claim
+2,書く,かく,100,v5-t,to write,,Illustrative sample
+3,する,する,1,v-irr-t,to do,,Illustrative sample
+4,来る,くる,2,v-irr-i,to come,,Illustrative sample
+5,行く,いく,10,v5-i,to go,,Illustrative sample
+6,ある,ある,5,v5-i,to exist,,Illustrative sample
+7,帰る,かえる,150,v5-i,return home,to return,Illustrative sample
+8,変える,かえる,200,v1-t,to change,to alter,Illustrative sample
+9,買える,かえる,250,v1-t,can buy,be able to buy,Illustrative sample
+10,まさか,まさか,241,adv,no way,surely not; unexpected,Illustrative sample
+11,飲む,のむ,190,v5-t,to drink,,Illustrative sample
+12,考える,かんがえる,180,v1-t,to think,to consider,Illustrative sample

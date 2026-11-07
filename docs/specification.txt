@@ -1,0 +1,522 @@
+0000 PRODUCT / ENGINEERING BRIEF
+0001 Japanese Study Website
+0002 Codex-ready functional specification  |  Revision 1.0
+0003 A desktop-first, locally stored Japanese vocabulary, kanji, and verb-conjugation trainer inspired by Benkyō. This document defines the intended behavior, data structures, review algorithm, screen patterns, edge cases, and implementation tests.
+0004 SOURCE BASIS
+0005 Adapted from the supplied “Website idea (Benkyō recreation sorta kinda idk)” document and the subsequent decisions in the conversation. Benkyō screenshots below are references for interaction patterns, not a request to copy its visuals or proprietary code.
+0006 DESIGN PRIORITIES
+0007 Fast active recall; typed vocabulary/kanji answers and minimal extra clicks.
+0008 Frequency-ranked, user-imported dictionaries; library entries are not automatically active flashcards.
+0009 A single unified SRS history for every graded review of a given card, regardless of quiz entry point.
+0010 Mixed-class verb conjugation exercises; never reveal godan/ichidan status as a hint.
+0011 Desktop web only; local persistence, offline operation, and portable backups.
+0012 Status: ready to implement. SRS constants are explicit provisional starting values and must remain adjustable; they are not presented as Benkyō’s internal formula.
+0014 Contents
+0015 1. Scope and product rules
+0016 2. Navigation, interaction, and quiz types
+0017 3. Vocabulary library, CSV schema, and imports
+0018 4. Kanji library and three-card model
+0019 5. Review engine, urgency graph, and scheduling
+0020 6. Verb conjugation drills and generator
+0021 7. Classification and automatic confusable-word practice
+0022 8. Statistics and progress screens
+0023 9. Persistence, quality, and implementation milestones
+0024 Appendix A. Complete conjugation catalog
+0025 Appendix B. Acceptance tests and defaults
+0026 Appendix C. Screenshot reference map
+0027 Implementation convention
+0028 Requirements marked MUST are essential. SHOULD identifies the preferred implementation when practical. Items explicitly labeled “Future / excluded” are not part of the initial website. In any conflict, the behavioral rules in this specification take precedence over appearance in a screenshot.
+0029 Use Japanese characters in all rendered study cards where applicable. The typed answer field itself remains in the Latin alphabet for Japanese responses, with automatic romanization matching; the learner should not need to switch keyboard layouts.
+0030 1. Scope and product rules
+0031 1.1 In scope
+0032 Separate vocabulary and kanji libraries with CSV imports, search, editing, and active-deck management.
+0033 Independent vocabulary (two directions) and kanji (three skills) flashcards.
+0034 FlexSRS-inspired urgency graph, custom/smart quiz selection, correct/incorrect/pass grading, and complete history.
+0035 Separate Conjugation area with dynamically selected verbs, fixed review-slot identities, and an extensive unlockable conjugation catalog.
+0036 Optional verb classification drill and fully automatic confusable-word drills.
+0037 Statistics modeled on the reference screens, including per-card speed-vs-date history.
+0038 Desktop-first dark-friendly layout, automatic local saving, data export/import, and recovery.
+0039 1.2 Explicitly excluded from version 1
+0040 No dedicated kana library or drills; no handwriting input or stroke-order testing; no mandatory listening/transcription activity; no sentence-translation flashcards or sentence mining; no vocabulary-coverage dashboard; no pitch-accent database or scoring; no AI tutor; no login or mandatory cloud service. Do not reproduce the App Store copy, subscription flow, or iOS navigation exactly.
+0041 1.3 Distinctions to preserve
+0042 Term
+0043 Meaning
+0044 Library entry
+0045 A word or kanji available for browsing/import. Not automatically in SRS.
+0046 Active deck entry
+0047 A deliberately activated library entry that generates the specified flashcard identities.
+0048 Card identity
+0049 A stable record with its own score, streak, review history, and due date.
+0050 Quiz
+0051 Any selection and presentation of cards. Quizzes do not create separate SRS histories.
+0052 Conjugation slot
+0053 A stable skill-card identity whose example verb changes between sessions.
+0055 2. Navigation, interaction, and quiz types
+0056 2.1 Navigation
+0057 Primary navigation: Library | Study | Conjugation | Statistics | Settings. Library has Vocabulary and Kanji subviews; Study has FlexSRS, Custom Quiz, Smart/targeted selections, Verb Classification, and Confusables. Conjugation manages enabled forms and launches its drills. Statistics supports overall and per-deck filters.
+0058  [IMAGES: media/image1.png]
+0059 Reference: Benkyō Library overview (source screenshot). Reuse its browse/search/direct-entry organization, but not the iPad-specific styling.
+0060 2.2 Study overview and quiz selection
+0061 Study home SHOULD provide: count of due/overdue cards; one click into FlexSRS; custom quiz builder; smart presets (weakest score, lowest streak, least recently reviewed, newly added); and shortcuts to classification and confusable drills. Filters may include deck, card direction/skill, frequency range, manually selected entries, and optional lists.
+0062  [IMAGES: media/image2.png]
+0063 Reference: Benkyō Study tab reference. Its separation between scheduled and customizable study is useful; all graded reviews still update the same underlying card.
+0064 2.3 Quiz interface
+0065 Typed question view: large prompt, furigana ON by default for vocabulary (never kanji-only quizzes), Japanese TTS with automatic prompt-side playback when Japanese text appears, answer box, submit, Pass / Don’t know, progress indicator.
+0066 English-to-Japanese and kanji reading responses MUST accept romaji / Latin input. Japanese-to-English meaning responses are typed in English.
+0067 Display Correct / Incorrect / Pass immediately, show the accepted answer(s) and entry details, and retain the learner’s actual response.
+0068 Incorrect and Pass MUST be identical for scheduling and streak updates, but retain their distinct visual labels in history.
+0069 Show a quiz-end summary with accuracy, per-question outcomes, times, and optionally immediately review incorrect cards.
+0070 Multiple choice is NOT used for normal vocab/kanji cards. It IS allowed for the specialized confusable-word mode; verb-classification uses three buttons.
+0071  [IMAGES: media/image3.png]
+0072 Reference: Benkyō question layout reference; recreate as a desktop typed-input view, not a copy of its mixed multiple-choice behavior.
+0073  [IMAGES: media/image4.png]
+0074 Reference: Benkyō quiz-complete overview: reproduce the substantive result rows and correctness breakdown.
+0075 3. Vocabulary library, CSV schema, and imports
+0076 3.1 Source CSV
+0077 Field
+0078 Purpose / expected input
+0079 id
+0080 Source row ID; retain for stable import matching in this file/source namespace.
+0081 word
+0082 Japanese word as written, e.g., 食べる.
+0083 form
+0084 Kana reading, e.g., たべる; source of furigana and romanization.
+0085 freq
+0086 Numeric frequency rank; 1 is most frequent. Sort ascending.
+0087 pos
+0088 Part of speech / verb class labels (e.g., v1-i, v5-t, v-irr-i).
+0089 translation
+0090 Primary concise English meaning, e.g., to eat.
+0091 extended
+0092 Semicolon-delimited alternative meanings (e.g., no way; surely not; unexpected).
+0093 notes
+0094 Human-readable notes. If this field contains !!!, skip row on import.
+0096 Example CSV rows (illustrative):
+0097 id
+0098 word
+0099 form
+0100 freq
+0101 pos
+0102 translation
+0103 extended
+0104 notes
+0105 190
+0106 食べる
+0107 たべる
+0108 194
+0109 v1-t
+0110 to eat
+0111 to consume
+0113 237
+0114 まさか
+0115 まさか
+0116 241
+0117 adv
+0118 no way
+0119 no way; surely not; unexpected
+0121 1
+0122 の
+0123 の
+0124 1
+0125 part
+0126 of
+0127 possessive particle
+0128 !!! Pure particle
+0130 3.2 Import and edit behavior
+0131 Bulk import from CSV; validate required columns, malformed ranks, missing readings, duplicate IDs, and encoding (UTF-8). Preview a count of accepted, skipped !!! rows, duplicates, and invalid rows before commit.
+0132 Offer a downloadable single-entry template and an Add Entry form that uses the same schema. Enable editing and deletion in the library.
+0133 Keep a stable internal identifier separate from display spelling and frequency rank. Reimports of the same source ID update the existing entry without resetting review history or duplicating deck cards.
+0134 Do not automatically activate all imported words. Support selecting individual words, range/frequency selection, and bulk Add to Vocabulary Deck.
+0135 Never silently delete studied cards because a later import omits their source row or marks a row excluded. Show a conflict/skip report; let the user decide explicitly.
+0136 Do not conflate homographs that have different source IDs, kana readings, senses, or part-of-speech tags.
+0137 Search both Japanese spelling and reading, romaji, English meanings, and frequency. Library view should expose meaning, reading, rank, active state, and edit controls.
+0138 3.3 Flashcards and acceptable answers
+0139 Automatic creation  Adding one vocabulary entry generates two independent cards: JP → EN and EN → JP, each with its own SRS history and due date.
+0140 JP → EN  Display the Japanese word with furigana by default (an optional user toggle may hide it). Accept the primary translation and standalone meaningful alternatives in extended (split by semicolons), allowing case and punctuation normalization. Never automatically accept loosely related senses based on AI guesses.
+0141 EN → JP  Display the primary English translation; require the kana pronunciation written in romaji. Accept common deterministic romaji variants, but never demand manual Japanese IME conversion or kanji characters.
+0142 TTS  Automatically read the Japanese text when the Japanese side appears, including upon answer reveal (not the English gloss); provide repeat and mute settings. If speech audio is unavailable offline, do not block reviews.
+0143 Notes  Show notes and other meanings on the answer/review detail, not as advance hints unless the quiz explicitly permits them.
+0144  [IMAGES: media/image5.png]
+0145 Reference: Benkyō vocabulary entry details; use a comparable information hierarchy, with user-managed fields and active-deck controls.
+0146 4. Kanji library and three-card model
+0147 4.1 CSV fields and library
+0148 Separate kanji CSV schema: id | kanji | onyomi | kunyomi | meaning | extended meaning | notes. The eventual kanji file is not finalized; implement a tolerant importer and a template with these canonical fields. Frequency ranking is optional additional metadata, not a required original field.
+0149 Three-card model  For a kanji with relevant readings, create Kanji → on’yomi, Kanji → kun’yomi, and Kanji → meaning as distinct identities, not bidirectional cards. Answers are typed, with readings entered in romaji.
+0150 Multiple answers  Support multiple correct on/kun readings and meaning alternatives. Only use readings explicitly supplied and designated acceptable by the imported data. Do not force the learner to recall an exhaustive dictionary of obscure readings.
+0151 Missing readings  If no usable on’yomi or kun’yomi is present, do not generate an unanswerable card. Display the excluded card type in the editor with a reason. Keep the other valid kanji card(s).
+0152 Kanji sourcing  Enable (a) add kanji of a particular vocabulary word, (b) add all kanji appearing in the active vocabulary deck, and (c) add top N not-yet-active eligible kanji. Only activate symbols actually present in the imported Kanji Library; report misses without inventing entries.
+0153 Frequency default  If kanji CSV lacks an explicit frequency rank, derive the “top N” order from occurrences in the ranked vocabulary library: best (lowest) rank containing that kanji, then stable tie-break. Make the derived nature visible. Do not confuse this with an externally verified kanji-frequency dataset.
+0154  [IMAGES: media/image6.png]
+0155 Reference: Benkyō kanji detail reference: display the character, main meaning/readings, metadata, and the distinct active card types.
+0156  [IMAGES: media/image7.png]
+0157 Reference: Benkyō kanji browse view reference, reorganized for desktop search/filtering.
+0158 5. Review engine, urgency graph, and scheduling
+0159 5.1 Non-negotiable review principles
+0160 Exactly one scheduling state per card identity. Normal, custom, smart, and targeted reviews of that same card update that state; there is no special “custom practice does not count” rule.
+0161 Urgency is a HARD 0–200% bound. Cards at 200% stay at 200% for both displayed urgency and scheduling priority; do not secretly rank them above the cap by elapsed lateness.
+0162 Premature reviews have a proportionately small impact. A review at 20% urgency must not reschedule a card nearly as much as a normal due review.
+0163 Current correct streak and lifetime accuracy should contribute about equally to card strength; FSRS-style learned memory stability slightly less (initial weights: 35 / 35 / 30).
+0164 Response speed has no penalty at or below 10 seconds. Above 10 seconds it should increasingly and aggressively limit the reward from an otherwise correct response.
+0165 Conservative maturation: approximate 2 days at first correct, 2.5 days at streak 2 under ordinary urgency, and 14 days near streak 8; these are approximate empirical targets, not exact Benkyō formulas.
+0166 5.2 Urgency and FlexSRS queue
+0167 For ordinary scheduled cards, let t = time since last graded review and I = that card’s current scheduled interval (same units). Urgency U = clamp(100 × t / I, 0, 200). At initial learning, define U = 100 until the first graded response. Values 0–99 are early, 100 is due, 101–199 overdue, and 200 is the absolute maximum. No hidden >200 priority score.
+0168 Sort cards by displayed capped urgency descending. At equal capped urgency, use a stable non-lateness tie-break (for example, current card strength then immutable ID); do not use how many days past the 200% cap a card has been. Show up to the first 300 entries in the graph by default, allowing expansion and filtering.
+0169 The graph is a sequence of vertical card bars, left-to-right highest to lowest urgency, with height on a 0–200% scale and a horizontal line at 100%. User may click the Nth bar or use +/- controls to select exactly the first N; selected bars turn yellow. Start Review queues those cards. Allow early cards if the user manually includes them. All modes use the same urgency/scheduling rules.
+0170  [IMAGES: media/image8.png]
+0171 Reference: Benkyō FlexSRS graph with 300 selected. Preserve the 0–200% scale, 100% due line, and highlighted selected region.
+0172  [IMAGES: media/image9.png]
+0173 Reference: Benkyō FlexSRS graph after selecting 54 cards; selection is an exact prefix of the ranked queue.
+0174 5.3 Configurable first-pass scheduler — explicit implementation model
+0175 The following is an IMPLEMENTATION PROPOSAL, not a verified reverse engineering of Benkyō. All constants should live in one documented configuration object and be unit-tested. Record the inputs and outputs of each interval calculation for debugging.
+0176 Baseline  Let s = new consecutive-correct streak. For s >= 1, use B(s) = 2 + 0.5 × (s − 1)^1.633 days. This passes through (1, 2d), (2, 2.5d), and approximately (8, 14d). At large streaks, cap the practical maximum interval to a configurable ceiling (default 365 days).
+0177 Accuracy  Keep raw lifetime correct/total and a Bayesian-smoothed accuracy estimate using a small configurable prior. A 1/1 card must not be considered as proven as a 50/50 card.
+0178 Memory  Maintain an FSRS-inspired difficulty/stability state or integrate a well-tested FSRS library for memory estimation. Do not simply use unmodified FSRS due dates as the final schedule; its contribution to card strength is 30% initially.
+0179 Strength  Normalize streak consistency, smoothed lifetime accuracy, and memory stability into 0–1 scores. Composite strength Q = 0.35 × streak_score + 0.35 × accuracy_score + 0.30 × memory_score. Avoid double-counting the raw streak so strongly that accuracy becomes negligible; tune the reference strength multiplier by streak.
+0180 Normal correctness  Compute a candidate interval from B(s) × a bounded strength adjustment (initial suggested range 0.75–1.25). At U=100 and typical speed/strength, it should match the calibration anchors. A correct response at 200% can earn an overdue bonus no greater than 2× the candidate interval; values beyond 200% provide no bonus.
+0181 Early answers  For U<100, let update_weight = (U/100)^2. Blend the candidate next-due date with the existing next-due date by this weight. Example: at U=20, only 4% of the due-date adjustment applies. This is the same rule in every quiz, not a separate custom-quiz exception.
+0182 Incorrect or Pass  Record the failure, reset the current correct streak, reduce memory stability, and move the next due date substantially earlier when the card is due. Preserve lifetime history so a well-established card can rebuild faster than an unfamiliar card. Starting default: 1-day relearning for a due failed card; expose the setback and recovery as adjustable parameters. For early failures, the capped urgency-scaled update weight still matters, but the streak is always reset.
+0183 Speed  On a Correct response: no penalty for t ≤ 10s. Suggested earned-growth multipliers: 12s → 0.8, 15s → 0.5, 20s → 0.2, ≥25s → 0.05, interpolated between points. A slow correct remains “correct” and adds to lifetime correct count, but may make little scheduling progress. Stop timing at submission or reveal (before self-grading).
+0184 Order of operations  Log raw response and time → update correct/incorrect counters and streak → update memory state → calculate quality/penalty → calculate candidate next interval → apply capped lateness factor and early-review blending → save next_due plus a transparent debug record.
+0185 The first correct response to a new card should produce a two-day interval in the normal case. The observed “second correct at 200% → five days” is compatible with a 2× capped lateness bonus, but that relationship remains a testable approximation, not a proven rule. Do not treat these calibration values as fixed across every card.
+0186 Streak
+0187 Reference interval
+0188 What this means
+0189 1
+0190 2.0 d
+0191 Observed first-success target.
+0192 2
+0193 2.5 d
+0194 Inferred 100%-urgency reference (200% observation ~5d).
+0195 3
+0196 3.6 d
+0197 Interpolated, not observed.
+0198 4
+0199 5.0 d
+0200 Interpolated, not observed.
+0201 5
+0202 6.8 d
+0203 Interpolated, not observed.
+0204 6
+0205 8.9 d
+0206 Interpolated, not observed.
+0207 7
+0208 11.3 d
+0209 Interpolated, not observed.
+0210 8
+0211 14 d
+0212 Approximate observed long-streak anchor.
+0214 5.4 Review records, speed and history
+0215 Store one row for every graded attempt: timestamp, card ID, entry ID, quiz/session ID and entry point, direction/skill, prompt and expected answer snapshot, typed reply or selection, result (correct/pass/wrong), response seconds, urgency before, interval before/after, next due before/after, streak before/after, smoothed/raw accuracy, strength components, conjugation form and selected verb if relevant. History is immutable; presentation details may be edited without deleting previous attempts.
+0216  [IMAGES: media/image10.png]
+0217 Reference: Benkyō manage-FlexSRS-cards modal: active card types are separate from the full library.
+0218 6. Verb conjugation drills and generator
+0219 6.1 Core behavior
+0220 Conjugation is a dedicated navigation area and an independent deck. Every listed form starts locked/disabled. Enable individual forms to generate review slots.
+0221 Each enabled form has 50 stable numbered slots (#1…#50), and each slot has two independently scheduled directions, for a maximum of 100 card identities per form.
+0222 A stable slot is an abstract skill, NOT a particular verb. Reassign its example verb at the beginning of each quiz/session; never change that verb in the middle of a quiz. Save the actual verb in the review history.
+0223 Only verbs ACTIVE in the Vocabulary Deck may appear, never library-only verbs. Use metadata to distinguish godan, ichidan, する, and 来る internally, but NEVER expose the class to the learner during conjugation questions.
+0224 Choose verbs with frequency-weighted randomness without replacement within each conjugation form for that quiz. A verb may recur in a different form. If fewer than 50 eligible distinct verbs exist, use only the available number of filled slots.
+0225 Reserve slot #3 for する and #4 for 来る whenever those verbs are active and linguistically applicable. Do not inject absent verbs into the active vocabulary deck; disable the reservation if the verb is ineligible.
+0226 Direction A: show dictionary form + short conjugation label; user types the conjugated Japanese pronunciation in romaji. Direction B: show a conjugated Japanese form; user recalls dictionary form + label, reveals the answer, and self-grades Correct or Pass/Incorrect.
+0227 Prompt labels should remain quickly readable, including “Present” (rather than forcing “Non-past”). Do not add verb-class hints or grammatical lectures to quiz prompts.
+0228 6.2 Generator correctness
+0229 Implement deterministic rule-based conjugation using verb-class metadata. Handle godan final-consonant categories, ichidan stems, する, 来る, irregular 行く (行って/行った), ある (negative ない), and applicable irregular or lexical exceptions. Do not generate answers using unvalidated free-form LLM output. Validate outputs against a curated test table per form and representative verb class.
+0230 Some forms are semantically unnatural for particular verbs. The engine must provide an eligibility flag per (verb, form) so such examples can be excluded, not blindly generated. Causative-passive contracted forms such as 書かされる may be accepted as valid alternatives where linguistically appropriate. Include common polite-desire alternatives where valid, but do not accept semantically distinct ないで and なくて as identical.
+0231 6.3 Card examples
+0232 Direction
+0233 Displayed question
+0234 Expected behavior
+0235 Forward / typed
+0236 食べる  •  Present (polite) (negative)
+0237 User enters tabemasen; accept proper romaji variants.
+0238 Reverse / self-grade
+0239 食べません
+0240 Reveal “食べる / Present (polite) (negative)” and ask Correct or Incorrect.
+0241 Another verb in next quiz
+0242 考える  •  Present (polite) (negative)
+0243 Same numbered slot and SRS history can now expect kangaemasen.
+0245 The full list of enabled forms and example conjugations appears in Appendix A; it preserves the original catalog and adds just two agreed forms: negative なくて and affirmative たり.
+0246 7. Classification and automatic confusable-word practice
+0247 7.1 Verb classification
+0248 Optional quick drill under Study: select a verb from the active vocabulary deck, show its dictionary form, kana, and optionally a brief gloss, then present exactly three instant-response buttons: Godan / Ichidan / Irregular. After answering, show the correct class and optionally the conjugated example. Allow an optional “tricky る-ending verbs” selection. Do not reveal the class in the separate Conjugation quizzes.
+0249 7.2 Confusable vocabulary: automatic generation only
+0250 The user MUST NOT be expected to curate lists of confusing words. Produce optional contrast sets automatically using (in priority order): (a) evidence from actual typed wrong answers that match another active vocabulary card’s valid pronunciation or meaning; (b) kana/romaji pronunciation similarity and identical readings; and (c) overlapping English meanings, using only imported data. Do not use pitch-accent distinctions or add pitch-accent metadata.
+0251 Wrong-answer associations  For an incorrectly answered typed vocabulary card, normalize the wrong response and see whether it matches the expected Japanese reading or English meaning of another ACTIVE vocabulary entry. Increase a directed confusion-pair score, weighted by repeats and recency. Ambiguous one-word glosses should produce low-confidence candidates, not asserted confusion facts.
+0252 Phonetic similarity  Compare kana strings after normalization using simple edit distance and phonetic-family rules; identical readings (帰る, 変える, 買える) are strong candidates for visual/meaning-based discrimination, not audio-only tests.
+0253 Semantic similarity  Compare existing translations/extended meanings and identify overlapping word senses. Favor words the learner has actually reviewed; use semantics only to propose candidates, not to invent translations.
+0254 Quiz mode  Use 3- or 4-option multiple-choice contrasts only within this feature. Show a meaningful prompt (e.g., “Which means return home?”), select candidates whose imported senses give an unambiguous right answer, and display a succinct comparison afterward. All alternatives MUST be from the active vocab deck.
+0255 Scheduling  Treat a confusable quiz that directly tests an existing vocabulary direction as a graded review of that SAME vocab card with the normal urgency-sensitive scheduler; do not create duplicate vocabulary SRS states. Record its choice-based input type for later analysis. If the question tests an abstract contrast rather than one definable card, record it in drill statistics without inventing a card identity.
+0256 Workload  Confusables remain an optional Study shortcut. Never force a new required queue or overwhelm normal daily reviews.
+0257 8. Statistics and progress screens
+0258 8.1 Summary, mastery and history
+0259 Preserve Benkyō-inspired statistics: reviewed-question count, number of quizzes, accumulated practice time, global success rate, study streak, mastery category breakdown, per-deck performance, and history. Every graph/filter must be functional rather than a decorative placeholder.
+0260 Statistics should show (a) an overall dashboard, (b) evolution over time, (c) rankings by score, current streak, accuracy, or slowest recall, (d) complete quiz history with the original end-of-quiz detail, and (e) an individual flashcard history screen.
+0261  [IMAGES: media/image11.png]
+0262 Reference: Benkyō statistics overview with quiz metrics, study streak, and mastery donut.
+0263  [IMAGES: media/image12.png]
+0264 Reference: Benkyō evolution view for trends over time. Use actual stored review records.
+0265 8.2 Individual-card chart
+0266 Horizontal axis = chronological review date from first to latest attempt. Vertical axis = response time in seconds. Plot each attempt as a dot: green = correct, yellow = pass, red = wrong. Include raw attempt rows below, showing timing, result, urgency and scheduling changes. The user should be able to inspect separate vocabulary directions, kanji skill cards, or conjugation slots.
+0267  [IMAGES: media/image13.png]
+0268 Reference: Benkyō per-card speed-versus-time history; preserve outcome colors and underlying raw records.
+0269  [IMAGES: media/image14.png]
+0270 Reference: Benkyō raw per-review table beneath the card history; include accurate dates and seconds.
+0271 9. Persistence, quality, and implementation milestones
+0272 9.1 Local storage and recoverability
+0273 The site must work without a mandatory external account. Use a local database (for example, SQLite with a lightweight local server, or an appropriate durable browser database). Persist every library edit, card activation, quiz result, and SRS update transactionally. No data-loss on restart. Provide Export All / Import Backup to portable human-inspectable structured files, with version metadata and tested round-trips.
+0274 Avoid destructive schema upgrades. For source rows or cards that are deleted by the user, require confirmation, protect historical audit records unless the user explicitly deletes those too, and save a pre-migration backup before upgrades.
+0275 9.2 Suggested data model
+0276 Entity
+0277 Core fields
+0278 VocabularyEntry
+0279 internal_id, source_id, word, form, freq, pos, translation, extended, notes, imported_at
+0280 KanjiEntry
+0281 internal_id, source_id, kanji, onyomi[], kunyomi[], meaning[], notes, optional rank
+0282 Card
+0283 card_id, entry_id or skill_slot_id, deck_id, direction, created_at, active
+0284 CardMemory
+0285 card_id, streak, correct_count, total_count, stability, difficulty, interval, last_reviewed, next_due
+0286 ReviewAttempt
+0287 review_id, card_id, session_id, prompt_snapshot, answer_snapshot, given, result, seconds, urgency, memory_before/after
+0288 ConjugationForm
+0289 form_id, quick_label, enabled, rule_key, eligible_verb_constraints
+0290 ConjugationSlot
+0291 form_id, slot_number, direction, stable card_id
+0292 ConfusionPair
+0293 entry_id_A, entry_id_B, evidence_source, confidence, last_seen
+0294 QuizSession
+0295 session_id, mode, selected_cards, start/end, result summary
+0297 9.3 Build order
+0298 Milestone 1: app shell, local persistence, vocabulary/kanji import/edit/search, activate/deactivate and two/three-card generation.
+0299 Milestone 2: correct/pass/incorrect review loop, unified scheduler and capped urgency graph, custom and smart selection, immutable review history.
+0300 Milestone 3: full deterministic conjugation engine, enabling forms and dynamic slots, eligibility, irregular-verb test cases.
+0301 Milestone 4: automated classification and confusable drills, comprehensive statistics, data backups, UI polish, performance.
+0302 Technical choice is left to Codex: prefer an established mainstream desktop web stack and a maintainable separation between pure scheduling/conjugation logic, data access, and UI. The project should run locally with simple documented setup. No app-store integration required.
+0303 Appendix A. Complete conjugation catalog
+0304 Display short labels in quizzes; use the identifier and full description internally. The examples below all conjugate 書く. This is the original form inventory plus two additions, not a proposal to add unrelated auxiliary-verb constructions. All forms begin disabled.
+0305 Core finite (8)
+0306 Visible quiz label
+0307 Example for 書く
+0308 Present (casual) (affirmative)
+0309 書く
+0310 Present (polite) (affirmative)
+0311 書きます
+0312 Present (casual) (negative)
+0313 書かない
+0314 Present (polite) (negative)
+0315 書きません
+0316 Past (casual) (affirmative)
+0317 書いた
+0318 Past (polite) (affirmative)
+0319 書きました
+0320 Past (casual) (negative)
+0321 書かなかった
+0322 Past (polite) (negative)
+0323 書きませんでした
+0325 Te / Tara / Ba / Tari (10)
+0326 Visible quiz label
+0327 Example for 書く
+0328 Te (casual) (affirmative)
+0329 書いて
+0330 Te (negative: without)
+0331 書かないで
+0332 Te (negative: reason)
+0333 書かなくて
+0334 Te (formal connective)
+0335 書きまして
+0336 Tara (casual) (affirmative)
+0337 書いたら
+0338 Tara (casual) (negative)
+0339 書かなかったら
+0340 Tara (polite) (affirmative)
+0341 書きましたら
+0342 Ba (casual) (affirmative)
+0343 書けば
+0344 Ba (casual) (negative)
+0345 書かなければ
+0346 Tari (affirmative)
+0347 書いたり
+0349 Desire (8)
+0350 Visible quiz label
+0351 Example for 書く
+0352 Desire (present) (casual) (affirmative)
+0353 書きたい
+0354 Desire (present) (polite) (affirmative)
+0355 書きたいです
+0356 Desire (present) (casual) (negative)
+0357 書きたくない
+0358 Desire (present) (polite) (negative)
+0359 書きたくないです
+0360 Desire (past) (casual) (affirmative)
+0361 書きたかった
+0362 Desire (past) (polite) (affirmative)
+0363 書きたかったです
+0364 Desire (past) (casual) (negative)
+0365 書きたくなかった
+0366 Desire (past) (polite) (negative)
+0367 書きたくなかったです
+0369 Potential (8)
+0370 Visible quiz label
+0371 Example for 書く
+0372 Potential (present) (casual) (affirmative)
+0373 書ける
+0374 Potential (present) (polite) (affirmative)
+0375 書けます
+0376 Potential (present) (casual) (negative)
+0377 書けない
+0378 Potential (present) (polite) (negative)
+0379 書けません
+0380 Potential (past) (casual) (affirmative)
+0381 書けた
+0382 Potential (past) (polite) (affirmative)
+0383 書けました
+0384 Potential (past) (casual) (negative)
+0385 書けなかった
+0386 Potential (past) (polite) (negative)
+0387 書けませんでした
+0389 Volitional / imperative (6)
+0390 Visible quiz label
+0391 Example for 書く
+0392 Volitional (polite)
+0393 書きましょう
+0394 Volitional (casual)
+0395 書こう
+0396 Imperative (casual)
+0397 書け
+0398 Prohibitive
+0399 書くな
+0400 Imperative (なさい)
+0401 書きなさい
+0402 Negative volitional (formal)
+0403 書くまい
+0405 Passive (8)
+0406 Visible quiz label
+0407 Example for 書く
+0408 Passive (present) (casual) (affirmative)
+0409 書かれる
+0410 Passive (present) (polite) (affirmative)
+0411 書かれます
+0412 Passive (present) (casual) (negative)
+0413 書かれない
+0414 Passive (present) (polite) (negative)
+0415 書かれません
+0416 Passive (past) (casual) (affirmative)
+0417 書かれた
+0418 Passive (past) (polite) (affirmative)
+0419 書かれました
+0420 Passive (past) (casual) (negative)
+0421 書かれなかった
+0422 Passive (past) (polite) (negative)
+0423 書かれませんでした
+0425 Causative (8)
+0426 Visible quiz label
+0427 Example for 書く
+0428 Causative (present) (casual) (affirmative)
+0429 書かせる
+0430 Causative (present) (polite) (affirmative)
+0431 書かせます
+0432 Causative (present) (casual) (negative)
+0433 書かせない
+0434 Causative (present) (polite) (negative)
+0435 書かせません
+0436 Causative (past) (casual) (affirmative)
+0437 書かせた
+0438 Causative (past) (polite) (affirmative)
+0439 書かせました
+0440 Causative (past) (casual) (negative)
+0441 書かせなかった
+0442 Causative (past) (polite) (negative)
+0443 書かせませんでした
+0445 Causative-passive (8)
+0446 Visible quiz label
+0447 Example for 書く
+0448 Causative-passive (present) (casual) (affirmative)
+0449 書かせられる
+0450 Causative-passive (present) (polite) (affirmative)
+0451 書かせられます
+0452 Causative-passive (present) (casual) (negative)
+0453 書かせられない
+0454 Causative-passive (present) (polite) (negative)
+0455 書かせられません
+0456 Causative-passive (past) (casual) (affirmative)
+0457 書かせられた
+0458 Causative-passive (past) (polite) (affirmative)
+0459 書かせられました
+0460 Causative-passive (past) (casual) (negative)
+0461 書かせられなかった
+0462 Causative-passive (past) (polite) (negative)
+0463 書かせられませんでした
+0465 Important meaning/label notes: “Present” is intentionally short learner-facing terminology despite Japanese non-past usage. 書きまして is a formal connective, not always interchangeable with 書いて. 書きなさい is a command, not merely a polite request. 書かないで and 書かなくて are distinct. 書くまい and 書きましたら are lower-priority but remain available when enabled.
+0467 Appendix B. Acceptance tests and defaults
+0468 Codex should write automated tests for the following behaviors, not merely demonstrate them with screenshots.
+0469 Area
+0470 Pass condition
+0471 Import
+0472 A CSV with 250 records, some !!! notes, invalid rows, and duplicate IDs previews exact results. Excluded rows never create cards.
+0473 Persistence
+0474 Add a vocab item and study it, exit/restart the app, verify library, review history, interval, and next due persist exactly.
+0475 Vocab generation
+0476 Adding 食べる creates exactly two independent card IDs; each has a separate streak, answers, and next due.
+0477 Synonyms
+0478 JP→EN まさか accepts “no way”, “surely not”, and “unexpected” from its extended list; capitalization/punctuation differences do not matter.
+0479 Romaji
+0480 EN→JP 食べる accepts correctly normalized romaji, not only Japanese keyboard output.
+0481 Kanji generation
+0482 An imported kanji with on’yomi, kun’yomi, and meaning yields three cards; missing-type readings do not yield an impossible question.
+0483 Kanji extraction
+0484 Adding kanji from active vocabulary ignores symbols missing in the Kanji Library and reports their count.
+0485 Urgency cap
+0486 For a ten-day interval: at day 10 urgency=100, day 20=200, day 100=200. No late bonus or priority above 200.
+0487 Queue selection
+0488 Clicking bar #54 highlights exactly the top 54 ranked cards; Start Review contains those identities and no others.
+0489 Early review
+0490 At urgency 20%, a correct response changes next_due minimally compared with an otherwise identical 100% review.
+0491 Scheduling anchors
+0492 New-card first correct at normal urgency ~2d; second correct at 100% ~2.5d; streak 8 under reference conditions ~14d; at 200% no more than 2x late boost.
+0493 Speed
+0494 Correct answers at 9.9s and 10.0s have no speed penalty; 15s receives a strong penalty; ≥25s almost no positive interval-growth credit.
+0495 Unified history
+0496 Review a vocab card through custom quiz, then FlexSRS; both attempts appear under one card and update one scheduling state.
+0497 Conjugation identity
+0498 Same slot changes from 飲む one session to 考える in another without creating a new SRS history.
+0499 Mixed classification
+0500 Conjugation questions do not show godan/ichidan/irregular labels; a standalone three-button classification exercise does.
+0501 Irregular verbs
+0502 Test する, 来る, 行く, ある, multiple godan endings, ichidan, and applicable causative-passive contractions.
+0503 Conjugation selection
+0504 No verb outside active Vocabulary Deck is used; no duplicate verb for the same form in one quiz; slots #3 and #4 are reserved when eligible.
+0505 Auto confusables
+0506 Incorrect typed answer matching another active vocab entry increases a confusion-pair score; optional contrast drill uses plausible unique-answer distractors.
+0507 Stats
+0508 Per-card speed/date plot has one dot per graded review with the proper color, plus raw timestamp/answer/urgency/interval row.
+0509 Backup
+0510 Export, erase test installation, reimport, verify deterministic round-trip for entries, cards, attempts, and schedules.
+0512 Defaults codified without additional user approval
+0513 The initial storage implementation is local; no cloud account. Backup/export is user-triggered and repeatable.
+0514 All conjugation forms begin disabled. The active verb inventory is the sole source of generated conjugation examples.
+0515 Maximum 50 conjugation slots/form/direction; no padded repeated verbs when fewer than 50 eligible words exist.
+0516 A new card starts at urgency 100; a card’s due-state formula applies after its first graded attempt.
+0517 Exact SRS tuning values (prior strength normalization, early-failure effect, maturity cap) are configurable in one place and logged, not scattered in UI code.
+0518 Manual confusable lists are not required; examples are discovered automatically without pitch-accent data.
+0519 Screenshots are visual/interaction examples only and never override typed-only normal quiz, no-kana, or hard-capped-urgency requirements.
+0520 Appendix C. Screenshot reference map
+0521 Embedded images were extracted from the original user-provided Word document. The source app screenshots demonstrate layout and workflow patterns; they are not permission to copy proprietary assets or visual branding.
+0522 This spec
+0523 Source document screenshot
+0524 Implementation use
+0525 §2
+0526 Library overview; Study home; typed quiz; quiz summary
+0527 Navigation, question/review and summary layouts.
+0528 §3
+0529 Vocabulary entry details
+0530 Browse fields and entry actions.
+0531 §4
+0532 Kanji detail; Kanji browse
+0533 Distinct entry/reading presentation.
+0534 §5
+0535 FlexSRS 300/54; Manage cards
+0536 Queue graph and active-card selection.
+0537 §8
+0538 Stats dashboard; evolution; card history and raw rows
+0539 Graphs, filters, and drill-down structure.
+0541 Original source: “Website idea (Benkyō recreation sorta kinda idk).docx”, provided in this conversation. Later conversation decisions are explicitly incorporated into the requirements above.
